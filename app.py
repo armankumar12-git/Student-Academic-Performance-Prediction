@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import joblib
@@ -6,11 +7,12 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
 
-# Load model and dataset
+# Load new six-feature model
 model = joblib.load(
-    BASE_DIR / "models" / "best_model_academic.pkl"
+    BASE_DIR / "models" / "best_model_academic_with_engagement.pkl"
 )
 
+# Load dataset
 df = pd.read_csv(
     BASE_DIR / "data" / "processed" / "student_performance_clean.csv"
 )
@@ -26,7 +28,7 @@ st.title("🎓 Student Academic Performance Prediction")
 
 st.write(
     "Predict a student's final academic score using "
-    "attendance, previous marks, study hours and academic performance."
+    "attendance, marks, study hours and engagement level."
 )
 
 st.divider()
@@ -94,6 +96,12 @@ with st.form("prediction_form"):
             value=4.0
         )
 
+        engagement = st.selectbox(
+            "Engagement Level",
+            options=sorted(df["Engagement_Level"].dropna().unique()),
+            index=0
+        )
+
     submitted = st.form_submit_button(
         "Predict Final Score",
         use_container_width=True
@@ -107,7 +115,8 @@ if submitted:
         "Internal_Marks": internal_marks,
         "Assignment_Score": assignment_score,
         "Previous_Semester_Score": previous_score,
-        "Study_Hours_Per_Day": study_hours
+        "Study_Hours_Per_Day": study_hours,
+        "Engagement_Level": engagement
     }])
 
     prediction = model.predict(input_data)[0]
@@ -144,21 +153,18 @@ if submitted:
 
 st.divider()
 
-st.caption(
-    "Machine Learning Project | Student Academic Performance Prediction"
-)
-
-# Model Performance Section
-
-st.divider()
-
-st.header("📊 Model Performance")
+# Updated Model Performance
+st.header("📊 Model Performance - With Engagement Level")
 
 col1, col2, col3 = st.columns(3)
 
-col1.metric("MAE", "4.68")
-col2.metric("RMSE", "5.90")
-col3.metric("R² Score", "0.5798")
+col1.metric("MAE", "4.15", delta="-0.52")
+col2.metric("RMSE", "5.24", delta="-0.66")
+col3.metric("R² Score", "0.6691", delta="+0.0893")
+
+st.caption(
+    "Selected Model: Linear Regression | Six input features"
+)
 
 st.subheader("Actual vs Predicted Scores")
 
@@ -171,3 +177,9 @@ st.subheader("Residual Analysis")
 residual_graph = BASE_DIR / "reports" / "figures" / "residual_analysis.png"
 
 st.image(str(residual_graph), use_container_width=True)
+
+st.divider()
+
+st.caption(
+    "Machine Learning Project | Student Academic Performance Prediction"
+)

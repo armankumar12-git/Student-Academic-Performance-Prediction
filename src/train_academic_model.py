@@ -1,3 +1,4 @@
+
 import pandas as pd
 import joblib
 
@@ -5,7 +6,8 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
 
 from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
@@ -19,14 +21,21 @@ df = pd.read_csv(
     BASE_DIR / "data" / "processed" / "student_performance_clean.csv"
 )
 
-# Select relevant input features
-features = [
+# Five numerical features
+numeric_features = [
     "Attendance_Percentage",
     "Internal_Marks",
     "Assignment_Score",
     "Previous_Semester_Score",
     "Study_Hours_Per_Day"
 ]
+
+# Sixth categorical feature
+categorical_features = [
+    "Engagement_Level"
+]
+
+features = numeric_features + categorical_features
 
 X = df[features]
 y = df["Final_Academic_Score"]
@@ -39,7 +48,23 @@ X_train, X_test, y_train, y_test = train_test_split(
 print("Training Records:", len(X_train))
 print("Testing Records:", len(X_test))
 
-# Define models
+# Preprocessing for numerical and categorical features
+numeric_transformer = Pipeline([
+    ("imputer", SimpleImputer(strategy="median")),
+    ("scaler", StandardScaler())
+])
+
+categorical_transformer = Pipeline([
+    ("imputer", SimpleImputer(strategy="most_frequent")),
+    ("encoder", OneHotEncoder(handle_unknown="ignore"))
+])
+
+preprocessor = ColumnTransformer([
+    ("numeric", numeric_transformer, numeric_features),
+    ("categorical", categorical_transformer, categorical_features)
+])
+
+# Define machine learning models
 models = {
     "Linear Regression": LinearRegression(),
 
@@ -60,8 +85,7 @@ trained_models = {}
 for name, algorithm in models.items():
 
     pipeline = Pipeline([
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler()),
+        ("preprocessor", preprocessor),
         ("model", algorithm)
     ])
 
@@ -86,19 +110,19 @@ for name, algorithm in models.items():
 results_df = pd.DataFrame(results)
 results_df = results_df.sort_values("RMSE")
 
-print("\nMODEL COMPARISON")
+print("\nMODEL COMPARISON - WITH ENGAGEMENT LEVEL")
 print(results_df.to_string(index=False))
 
 # Select model with lowest RMSE
 best_name = results_df.iloc[0]["Model"]
 best_model = trained_models[best_name]
 
-# Save best model separately
-model_path = BASE_DIR / "models" / "best_model_academic.pkl"
+# Save new model separately
+model_path = BASE_DIR / "models" / "best_model_academic_with_engagement.pkl"
 joblib.dump(best_model, model_path)
 
-# Save comparison report
-report_path = BASE_DIR / "reports" / "academic_model_comparison.csv"
+# Save new comparison report
+report_path = BASE_DIR / "reports" / "academic_model_comparison_with_engagement.csv"
 results_df.to_csv(report_path, index=False)
 
 print("\nBest Model:", best_name)
